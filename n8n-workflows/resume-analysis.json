@@ -1,0 +1,429 @@
+{
+  "name": "Resume Analysis (Aspect-Based, No Job Description)",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "/resume-analysis",
+        "httpMethod": "POST",
+        "options": {},
+        "responseMode": "onReceived",
+        "responseData": "allEntries",
+        "responseCode": 200
+      },
+      "id": "Webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [100, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Extract resume text\nconst resume = $json.body.resume || $json.resume || $json.text || $json.content || ''\nreturn [{ json: { resume } }];"
+      },
+      "id": "Extract Resume",
+      "name": "Extract Resume",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [300, 300],
+      "notes": "Extracts resume text from input"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Aspect: Date & Formatting\nconst dateRegex = /\b(19|20)\\d{2}\b/g;\nconst dates = $json.resume.match(dateRegex) || [];\nconst consistent = dates.every(d => /^\\d{4}$/.test(d));\nconst score = dates.length > 0 && consistent ? 10 : (dates.length > 0 ? 5 : 0);\nconst flag = !consistent ? 'Inconsistent date formatting' : null;\nreturn [{ json: { dateFormattingScore: score, dateFormattingFlag: flag, dates } }];"
+      },
+      "id": "Date Formatting",
+      "name": "Date Formatting",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [500, 100],
+      "notes": "Checks for date presence and consistency"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Aspect: Education\nconst educationRegex = /(education|degree|bachelor|master|phd|university|college)/i;\nconst hasEducation = educationRegex.test($json.resume);\nconst score = hasEducation ? 10 : 0;\nconst flag = hasEducation ? null : 'No education section';\nreturn [{ json: { educationScore: score, educationFlag: flag } }];"
+      },
+      "id": "Education",
+      "name": "Education",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [500, 200],
+      "notes": "Checks for education section"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Aspect: Skills Section\nconst skillsRegex = /(skills|technologies|tools)/i;\nconst hasSkills = skillsRegex.test($json.resume);\nconst score = hasSkills ? 10 : 0;\nconst flag = hasSkills ? null : 'No skills section';\nreturn [{ json: { skillsScore: score, skillsFlag: flag } }];"
+      },
+      "id": "Skills",
+      "name": "Skills",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [500, 300],
+      "notes": "Checks for skills section"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Aspect: Buzzwords\nconst buzzwords = ['synergy','hardworking','dynamic','go-getter','results-driven','detail-oriented','team player','innovative','passionate','motivated'];\nconst found = buzzwords.filter(bw => $json.resume.toLowerCase().includes(bw));\nconst score = found.length === 0 ? 10 : (10 - found.length);\nconst flag = found.length > 2 ? 'Overuse of buzzwords' : null;\nreturn [{ json: { buzzwordsScore: score, buzzwordsFlag: flag, buzzwordsFound: found } }];"
+      },
+      "id": "Buzzwords",
+      "name": "Buzzwords",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [500, 400],
+      "notes": "Checks for overuse of buzzwords"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Aspect: Quantify Impact\nconst quantifyRegex = /\\b(\\d+%?|\\$\\d+|[0-9]+ projects?|[0-9]+ people|[0-9]+ clients?)\\b/gi;\nconst matches = $json.resume.match(quantifyRegex) || [];\nconst score = Math.min(10, matches.length * 2);\nconst flag = score < 5 ? 'Few quantifiable achievements' : null;\nreturn [{ json: { quantifyImpactScore: score, quantifyImpactFlag: flag, quantifyImpactMatches: matches } }];"
+      },
+      "id": "Quantify Impact",
+      "name": "Quantify Impact",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [500, 500],
+      "notes": "Checks for quantifiable achievements"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Aspect: Length & Depth\nconst wordCount = $json.resume.split(/\\s+/).length;\nconst score = wordCount > 100 && wordCount < 1000 ? 10 : (wordCount <= 100 ? 3 : 5);\nconst flag = wordCount > 1200 ? 'Resume too long' : (wordCount < 100 ? 'Resume too short' : null);\nreturn [{ json: { lengthScore: score, lengthFlag: flag, wordCount } }];"
+      },
+      "id": "Length & Depth",
+      "name": "Length & Depth",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [500, 600],
+      "notes": "Checks resume length"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Aspect: Bullet Length\nconst bulletRegex = /\\n[-*] (.+)/g;\nconst bullets = [...$json.resume.matchAll(bulletRegex)].map(m => m[1]);\nconst avgBulletLen = bullets.length ? bullets.reduce((a, b) => a + b.length, 0) / bullets.length : 0;\nconst score = avgBulletLen > 0 && avgBulletLen < 120 ? 10 : (avgBulletLen >= 120 ? 5 : 0);\nconst flag = avgBulletLen >= 120 ? 'Bullets too long' : null;\nreturn [{ json: { bulletLengthScore: score, bulletLengthFlag: flag, avgBulletLen } }];"
+      },
+      "id": "Bullet Length",
+      "name": "Bullet Length",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [500, 700],
+      "notes": "Checks bullet point length"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Aspect: Weak Verbs\nconst weakVerbs = ['helped','worked','assisted','participated','supported','contributed'];\nconst found = weakVerbs.filter(v => $json.resume.toLowerCase().includes(v));\nconst score = found.length === 0 ? 10 : (10 - found.length);\nconst flag = found.length > 2 ? 'Overuse of weak verbs' : null;\nreturn [{ json: { weakVerbsScore: score, weakVerbsFlag: flag, weakVerbsFound: found } }];"
+      },
+      "id": "Weak Verbs",
+      "name": "Weak Verbs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [500, 800],
+      "notes": "Checks for weak verbs"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Aspect: Filler Words\nconst fillerWords = ['very','really','just','quite','some','many','various','numerous','several','few','thing','stuff'];\nconst found = fillerWords.filter(w => $json.resume.toLowerCase().includes(w));\nconst score = found.length === 0 ? 10 : (10 - found.length);\nconst flag = found.length > 2 ? 'Overuse of filler words' : null;\nreturn [{ json: { fillerWordsScore: score, fillerWordsFlag: flag, fillerWordsFound: found } }];"
+      },
+      "id": "Filler Words",
+      "name": "Filler Words",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [500, 900],
+      "notes": "Checks for filler words"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Aspect: Leadership\nconst leadershipWords = ['lead','led','managed','supervised','coordinated','directed','mentored','organized'];\nconst found = leadershipWords.filter(w => $json.resume.toLowerCase().includes(w));\nconst score = found.length > 0 ? 10 : 5;\nconst flag = found.length === 0 ? 'No leadership experience mentioned' : null;\nreturn [{ json: { leadershipScore: score, leadershipFlag: flag, leadershipFound: found } }];"
+      },
+      "id": "Leadership",
+      "name": "Leadership",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [700, 100],
+      "notes": "Checks for leadership experience"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Aspect: Communication\nconst commWords = ['communicated','presented','explained','negotiated','collaborated','liaised','reported'];\nconst found = commWords.filter(w => $json.resume.toLowerCase().includes(w));\nconst score = found.length > 0 ? 10 : 5;\nconst flag = found.length === 0 ? 'No communication skills mentioned' : null;\nreturn [{ json: { communicationScore: score, communicationFlag: flag, communicationFound: found } }];"
+      },
+      "id": "Communication",
+      "name": "Communication",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [700, 200],
+      "notes": "Checks for communication skills"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Aspect: Analytical\nconst analyticalWords = ['analyzed','evaluated','researched','assessed','solved','investigated','diagnosed'];\nconst found = analyticalWords.filter(w => $json.resume.toLowerCase().includes(w));\nconst score = found.length > 0 ? 10 : 5;\nconst flag = found.length === 0 ? 'No analytical skills mentioned' : null;\nreturn [{ json: { analyticalScore: score, analyticalFlag: flag, analyticalFound: found } }];"
+      },
+      "id": "Analytical",
+      "name": "Analytical",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [700, 300],
+      "notes": "Checks for analytical skills"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Aspect: Teamwork\nconst teamworkWords = ['team','collaborated','cooperated','group','committee','partnered','jointly'];\nconst found = teamworkWords.filter(w => $json.resume.toLowerCase().includes(w));\nconst score = found.length > 0 ? 10 : 5;\nconst flag = found.length === 0 ? 'No teamwork mentioned' : null;\nreturn [{ json: { teamworkScore: score, teamworkFlag: flag, teamworkFound: found } }];"
+      },
+      "id": "Teamwork",
+      "name": "Teamwork",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [700, 400],
+      "notes": "Checks for teamwork"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Aspect: Drive\nconst driveWords = ['initiated','launched','created','built','developed','founded','established','started'];\nconst found = driveWords.filter(w => $json.resume.toLowerCase().includes(w));\nconst score = found.length > 0 ? 10 : 5;\nconst flag = found.length === 0 ? 'No drive/initiative shown' : null;\nreturn [{ json: { driveScore: score, driveFlag: flag, driveFound: found } }];"
+      },
+      "id": "Drive",
+      "name": "Drive",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [700, 500],
+      "notes": "Checks for drive/initiative"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Aspect: Responsibilities\nconst respRegex = /responsib(le|ility|ilities)/i;\nconst hasResp = respRegex.test($json.resume);\nconst score = hasResp ? 10 : 5;\nconst flag = hasResp ? null : 'No responsibilities described';\nreturn [{ json: { responsibilitiesScore: score, responsibilitiesFlag: flag } }];"
+      },
+      "id": "Responsibilities",
+      "name": "Responsibilities",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [700, 600],
+      "notes": "Checks for responsibilities"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Aspect: Personal Pronouns\nconst pronouns = ['i ','me ','my ','mine ','we ','us ','our ','ours '];\nconst found = pronouns.filter(p => $json.resume.toLowerCase().includes(p));\nconst score = found.length === 0 ? 10 : (10 - found.length);\nconst flag = found.length > 2 ? 'Overuse of personal pronouns' : null;\nreturn [{ json: { personalPronounsScore: score, personalPronounsFlag: flag, personalPronounsFound: found } }];"
+      },
+      "id": "Personal Pronouns",
+      "name": "Personal Pronouns",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [700, 700],
+      "notes": "Checks for personal pronouns"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Aspect: Spelling & Consistency\nconst spellingRegex = /\\bteh\\b|\\brecieve\\b|\\bseperate\\b|\\bdefinately\\b|\\boccured\\b|\\buntill\\b|\\bwich\\b/gi;\nconst found = $json.resume.match(spellingRegex) || [];\nconst score = found.length === 0 ? 10 : (10 - found.length);\nconst flag = found.length > 0 ? 'Spelling errors found' : null;\nreturn [{ json: { spellingScore: score, spellingFlag: flag, spellingErrors: found } }];"
+      },
+      "id": "Spelling & Consistency",
+      "name": "Spelling & Consistency",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [700, 800],
+      "notes": "Checks for spelling errors"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Aspect: Unnecessary Sections\nconst unnecessary = ['hobbies','references','marital status','religion','gender','age','date of birth'];\nconst found = unnecessary.filter(s => $json.resume.toLowerCase().includes(s));\nconst score = found.length === 0 ? 10 : (10 - found.length);\nconst flag = found.length > 0 ? 'Unnecessary sections present' : null;\nreturn [{ json: { unnecessarySectionsScore: score, unnecessarySectionsFlag: flag, unnecessarySectionsFound: found } }];"
+      },
+      "id": "Unnecessary Sections",
+      "name": "Unnecessary Sections",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [900, 100],
+      "notes": "Checks for unnecessary sections"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Aspect: Repetition\nconst words = $json.resume.toLowerCase().split(/\\W+/);\nconst wordCounts = words.reduce((acc, w) => { acc[w] = (acc[w] || 0) + 1; return acc; }, {});\nconst repeated = Object.entries(wordCounts).filter(([w, c]) => c > 5 && w.length > 3).map(([w]) => w);\nconst score = repeated.length === 0 ? 10 : (10 - repeated.length);\nconst flag = repeated.length > 0 ? 'Repetition detected' : null;\nreturn [{ json: { repetitionScore: score, repetitionFlag: flag, repeatedWords: repeated } }];"
+      },
+      "id": "Repetition",
+      "name": "Repetition",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [900, 200],
+      "notes": "Checks for repetition"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Aspect: Readability\nconst sentences = $json.resume.split(/[.!?]/).length;\nconst words = $json.resume.split(/\\s+/).length;\nconst avgSentenceLen = words / (sentences || 1);\nconst score = avgSentenceLen < 25 ? 10 : (avgSentenceLen < 35 ? 7 : 4);\nconst flag = avgSentenceLen > 35 ? 'Poor readability' : null;\nreturn [{ json: { readabilityScore: score, readabilityFlag: flag, avgSentenceLen } }];"
+      },
+      "id": "Readability",
+      "name": "Readability",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [900, 300],
+      "notes": "Checks readability"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Aspect: Summary\nconst summaryRegex = /(summary|objective|profile)/i;\nconst hasSummary = summaryRegex.test($json.resume);\nconst score = hasSummary ? 10 : 0;\nconst flag = hasSummary ? null : 'No summary section';\nreturn [{ json: { summaryScore: score, summaryFlag: flag } }];"
+      },
+      "id": "Summary",
+      "name": "Summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [900, 400],
+      "notes": "Checks for summary section"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Aspect: Contact Details\nconst contactRegex = /(email|phone|linkedin|contact|address)/i;\nconst hasContact = contactRegex.test($json.resume);\nconst score = hasContact ? 10 : 0;\nconst flag = hasContact ? null : 'No contact details';\nreturn [{ json: { contactScore: score, contactFlag: flag } }];"
+      },
+      "id": "Contact Details",
+      "name": "Contact Details",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [900, 500],
+      "notes": "Checks for contact details"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Aspect: Active Voice\nconst passiveRegex = /\\b(is|was|were|be|been|being|are|am)\\b [a-z]+ed/gi;\nconst passiveMatches = $json.resume.match(passiveRegex) || [];\nconst score = passiveMatches.length < 5 ? 10 : (10 - passiveMatches.length);\nconst flag = passiveMatches.length > 5 ? 'Too much passive voice' : null;\nreturn [{ json: { activeVoiceScore: score, activeVoiceFlag: flag, passiveMatches } }];"
+      },
+      "id": "Active Voice",
+      "name": "Active Voice",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [900, 600],
+      "notes": "Checks for active/passive voice"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Aspect: Consistency\nconst tenseRegex = /\\b(ed|ing)\\b/g;\nconst tenses = $json.resume.match(tenseRegex) || [];\nconst score = tenses.length > 0 ? 10 : 5;\nconst flag = tenses.length === 0 ? 'No consistent tense' : null;\nreturn [{ json: { consistencyScore: score, consistencyFlag: flag } }];"
+      },
+      "id": "Consistency",
+      "name": "Consistency",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [900, 700],
+      "notes": "Checks for tense consistency"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Aspect: Page Density\nconst lines = $json.resume.split(/\\n/).length;\nconst pages = Math.ceil(lines / 50);\nconst density = $json.wordCount / (pages || 1);\nconst score = density > 200 && density < 600 ? 10 : (density < 200 ? 5 : 7);\nconst flag = density > 700 ? 'Page too dense' : (density < 150 ? 'Page too sparse' : null);\nreturn [{ json: { pageDensityScore: score, pageDensityFlag: flag, density } }];"
+      },
+      "id": "Page Density",
+      "name": "Page Density",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [900, 800],
+      "notes": "Checks for page density"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Aspect: Verb Tenses\nconst pastTense = /\\b(ed)\\b/g;\nconst presentTense = /\\b(ing)\\b/g;\nconst pastCount = ($json.resume.match(pastTense) || []).length;\nconst presentCount = ($json.resume.match(presentTense) || []).length;\nconst score = Math.abs(pastCount - presentCount) < 10 ? 10 : 5;\nconst flag = Math.abs(pastCount - presentCount) > 20 ? 'Inconsistent verb tenses' : null;\nreturn [{ json: { verbTensesScore: score, verbTensesFlag: flag, pastCount, presentCount } }];"
+      },
+      "id": "Verb Tenses",
+      "name": "Verb Tenses",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1100, 100],
+      "notes": "Checks for verb tense consistency"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Aspect: Use of Bullets\nconst bulletCount = ($json.resume.match(/\\n[-*] /g) || []).length;\nconst score = bulletCount > 5 ? 10 : 5;\nconst flag = bulletCount < 3 ? 'Not enough bullet points' : null;\nreturn [{ json: { useOfBulletsScore: score, useOfBulletsFlag: flag, bulletCount } }];"
+      },
+      "id": "Use of Bullets",
+      "name": "Use of Bullets",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1100, 200],
+      "notes": "Checks for bullet point usage"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Aspect: Growth Signals\nconst growthWords = ['promoted','promotion','increased responsibility','grew','advanced','progressed','expanded'];\nconst found = growthWords.filter(w => $json.resume.toLowerCase().includes(w));\nconst score = found.length > 0 ? 10 : 5;\nconst flag = found.length === 0 ? 'No growth signals' : null;\nreturn [{ json: { growthSignalsScore: score, growthSignalsFlag: flag, growthSignalsFound: found } }];"
+      },
+      "id": "Growth Signals",
+      "name": "Growth Signals",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1100, 300],
+      "notes": "Checks for growth signals"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Aggregate all aspect scores and flags\nconst all = Object.assign({}, ...items.map(i => i.json));\nconst aspectScores = {};\nconst flags = [];\nObject.keys(all).forEach(k => {\n  if (k.endsWith('Score')) aspectScores[k.replace('Score','')] = all[k];\n  if (k.endsWith('Flag') && all[k]) flags.push(all[k]);\n});\nconst score = Math.round(Object.values(aspectScores).reduce((a,b) => a+b,0) / Object.values(aspectScores).length);\nconst recommendations = flags.map(f => 'Fix: ' + f);\nreturn [{ json: { success: true, score, aspectScores, recommendations, flags, insights: all } }];"
+      },
+      "id": "Aggregate & Respond",
+      "name": "Aggregate & Respond",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1300, 300],
+      "notes": "Aggregates all aspect scores and outputs final result"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "Response",
+      "name": "Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1500, 300],
+      "notes": "Returns the analysis results as JSON response"
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{"node": "Extract Resume", "type": "main", "index": 0}]]
+    },
+    "Extract Resume": {
+      "main": [[
+        {"node": "Date Formatting", "type": "main", "index": 0},
+        {"node": "Education", "type": "main", "index": 0},
+        {"node": "Skills", "type": "main", "index": 0},
+        {"node": "Buzzwords", "type": "main", "index": 0},
+        {"node": "Quantify Impact", "type": "main", "index": 0},
+        {"node": "Length & Depth", "type": "main", "index": 0},
+        {"node": "Bullet Length", "type": "main", "index": 0},
+        {"node": "Weak Verbs", "type": "main", "index": 0},
+        {"node": "Filler Words", "type": "main", "index": 0},
+        {"node": "Leadership", "type": "main", "index": 0},
+        {"node": "Communication", "type": "main", "index": 0},
+        {"node": "Analytical", "type": "main", "index": 0},
+        {"node": "Teamwork", "type": "main", "index": 0},
+        {"node": "Drive", "type": "main", "index": 0},
+        {"node": "Responsibilities", "type": "main", "index": 0},
+        {"node": "Personal Pronouns", "type": "main", "index": 0},
+        {"node": "Spelling & Consistency", "type": "main", "index": 0},
+        {"node": "Unnecessary Sections", "type": "main", "index": 0},
+        {"node": "Repetition", "type": "main", "index": 0},
+        {"node": "Readability", "type": "main", "index": 0},
+        {"node": "Summary", "type": "main", "index": 0},
+        {"node": "Contact Details", "type": "main", "index": 0},
+        {"node": "Active Voice", "type": "main", "index": 0},
+        {"node": "Consistency", "type": "main", "index": 0},
+        {"node": "Page Density", "type": "main", "index": 0},
+        {"node": "Verb Tenses", "type": "main", "index": 0},
+        {"node": "Use of Bullets", "type": "main", "index": 0},
+        {"node": "Growth Signals", "type": "main", "index": 0}
+      ]]
+    },
+    "Date Formatting": { "main": [[{"node": "Aggregate & Respond", "type": "main", "index": 0}]] },
+    "Education": { "main": [[{"node": "Aggregate & Respond", "type": "main", "index": 0}]] },
+    "Skills": { "main": [[{"node": "Aggregate & Respond", "type": "main", "index": 0}]] },
+    "Buzzwords": { "main": [[{"node": "Aggregate & Respond", "type": "main", "index": 0}]] },
+    "Quantify Impact": { "main": [[{"node": "Aggregate & Respond", "type": "main", "index": 0}]] },
+    "Length & Depth": { "main": [[{"node": "Aggregate & Respond", "type": "main", "index": 0}]] },
+    "Bullet Length": { "main": [[{"node": "Aggregate & Respond", "type": "main", "index": 0}]] },
+    "Weak Verbs": { "main": [[{"node": "Aggregate & Respond", "type": "main", "index": 0}]] },
+    "Filler Words": { "main": [[{"node": "Aggregate & Respond", "type": "main", "index": 0}]] },
+    "Leadership": { "main": [[{"node": "Aggregate & Respond", "type": "main", "index": 0}]] },
+    "Communication": { "main": [[{"node": "Aggregate & Respond", "type": "main", "index": 0}]] },
+    "Analytical": { "main": [[{"node": "Aggregate & Respond", "type": "main", "index": 0}]] },
+    "Teamwork": { "main": [[{"node": "Aggregate & Respond", "type": "main", "index": 0}]] },
+    "Drive": { "main": [[{"node": "Aggregate & Respond", "type": "main", "index": 0}]] },
+    "Responsibilities": { "main": [[{"node": "Aggregate & Respond", "type": "main", "index": 0}]] },
+    "Personal Pronouns": { "main": [[{"node": "Aggregate & Respond", "type": "main", "index": 0}]] },
+    "Spelling & Consistency": { "main": [[{"node": "Aggregate & Respond", "type": "main", "index": 0}]] },
+    "Unnecessary Sections": { "main": [[{"node": "Aggregate & Respond", "type": "main", "index": 0}]] },
+    "Repetition": { "main": [[{"node": "Aggregate & Respond", "type": "main", "index": 0}]] },
+    "Readability": { "main": [[{"node": "Aggregate & Respond", "type": "main", "index": 0}]] },
+    "Summary": { "main": [[{"node": "Aggregate & Respond", "type": "main", "index": 0}]] },
+    "Contact Details": { "main": [[{"node": "Aggregate & Respond", "type": "main", "index": 0}]] },
+    "Active Voice": { "main": [[{"node": "Aggregate & Respond", "type": "main", "index": 0}]] },
+    "Consistency": { "main": [[{"node": "Aggregate & Respond", "type": "main", "index": 0}]] },
+    "Page Density": { "main": [[{"node": "Aggregate & Respond", "type": "main", "index": 0}]] },
+    "Verb Tenses": { "main": [[{"node": "Aggregate & Respond", "type": "main", "index": 0}]] },
+    "Use of Bullets": { "main": [[{"node": "Aggregate & Respond", "type": "main", "index": 0}]] },
+    "Growth Signals": { "main": [[{"node": "Aggregate & Respond", "type": "main", "index": 0}]] },
+    "Aggregate & Respond": { "main": [[{"node": "Response", "type": "main", "index": 0}]] }
+  }
+} 

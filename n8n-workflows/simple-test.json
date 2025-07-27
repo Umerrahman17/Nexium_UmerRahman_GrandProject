@@ -1,0 +1,37 @@
+{
+  "name": "Simple Webhook Test",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "/resume-analysis",
+        "httpMethod": "POST",
+        "options": {},
+        "responseMode": "onReceived",
+        "responseData": "allEntries",
+        "responseCode": 200
+      },
+      "id": "Webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [100, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"success\": true,\n  \"message\": \"Webhook is working!\",\n  \"receivedData\": \"{{ $json }}\",\n  \"timestamp\": \"{{ new Date().toISOString() }}\"\n}",
+        "options": {}
+      },
+      "id": "Response",
+      "name": "Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [300, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{"node": "Response", "type": "main", "index": 0}]]
+    }
+  }
+} 
