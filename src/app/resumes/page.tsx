@@ -161,10 +161,6 @@ export default function ResumesPage() {
                       Analyze
                     </Link>
                   </Button>
-                  <Button variant="outline" size="sm">
-                    <Edit className="mr-2 h-4 w-4" />
-                    Edit
-                  </Button>
                   <Button 
                     variant="outline" 
                     size="sm" 

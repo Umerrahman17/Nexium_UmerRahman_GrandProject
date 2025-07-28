@@ -52,14 +52,13 @@ export default function AnalysisPage() {
       console.log('Fetched resumes:', data)
       
       // Ensure data is an array
-      if (Array.isArray(data)) {
-      setResumes(data)
-      } else if (data && Array.isArray(data.data)) {
-        setResumes(data.data)
+      if (data && Array.isArray(data.resumes)) {
+        setResumes(data.resumes)
       } else {
         console.error('Unexpected data format:', data)
         setResumes([])
       }
+
     } catch (error) {
       console.error('Error fetching resumes:', error)
       setError(error instanceof Error ? error.message : 'Failed to load resumes')
@@ -455,17 +454,7 @@ export default function AnalysisPage() {
             </Card>
             )}
 
-            {/* Action Buttons */}
-            <div className="flex space-x-4">
-              <Button className="flex-1">
-                <TrendingUp className="mr-2 h-4 w-4" />
-                Optimize Resume
-              </Button>
-              <Button variant="outline" className="flex-1">
-                <FileText className="mr-2 h-4 w-4" />
-                View Detailed Report
-              </Button>
-            </div>
+            
           </div>
         )}
       </div>
