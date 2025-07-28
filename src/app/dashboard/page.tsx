@@ -42,16 +42,28 @@ export default function DashboardPage() {
       // Fetch resumes
       const resumesResponse = await fetch('/api/resumes')
       const resumesData = await resumesResponse.json()
-      setResumes(resumesData)
-
-
+      
+      if (resumesData.success) {
+        setResumes(resumesData.resumes || [])
+      } else {
+        console.error('Failed to fetch resumes:', resumesData.error)
+        setResumes([])
+      }
 
       // Fetch analyses
       const analysesResponse = await fetch('/api/analyses')
       const analysesData = await analysesResponse.json()
-      setAnalyses(analysesData)
+      
+      if (analysesData.success) {
+        setAnalyses(analysesData.analyses || [])
+      } else {
+        console.error('Failed to fetch analyses:', analysesData.error)
+        setAnalyses([])
+      }
     } catch (error) {
       console.error('Error fetching dashboard data:', error)
+      setResumes([])
+      setAnalyses([])
     } finally {
       setDataLoading(false)
     }
@@ -177,6 +189,13 @@ export default function DashboardPage() {
                 <Link href="/analysis">
                   <TrendingUp className="mr-2 h-4 w-4" />
                   Analyze Resume
+                </Link>
+              </Button>
+
+              <Button asChild variant="outline" className="w-full">
+                <Link href="/resumes">
+                  <FileText className="mr-2 h-4 w-4" />
+                  View All Resumes
                 </Link>
               </Button>
             </CardContent>

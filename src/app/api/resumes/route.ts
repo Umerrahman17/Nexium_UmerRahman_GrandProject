@@ -5,63 +5,97 @@ import { n8nClient } from '@/lib/n8n'
 
 export async function GET(request: NextRequest) {
   try {
+    console.log('GET /api/resumes - Starting request')
+    
     const supabase = createServerSupabaseClient()
+    console.log('Supabase client created')
     
     // Get the user from the request (you'll need to implement auth middleware)
     // For now, we'll get all resumes (in production, filter by user_id)
+    console.log('Fetching resumes from Supabase...')
     const { data: resumes, error } = await supabase
       .from('resumes')
       .select('*')
       .order('created_at', { ascending: false })
 
+    console.log('Supabase response:', { resumes, error })
+
     if (error) {
-      console.error('Error fetching resumes:', error)
-      return NextResponse.json({ error: 'Failed to fetch resumes' }, { status: 500 })
+      console.error('Error fetching resumes from Supabase:', error)
+      return NextResponse.json({ 
+        success: false,
+        error: 'Failed to fetch resumes',
+        details: error.message 
+      }, { status: 500 })
     }
 
+    // If no resumes found, return empty array
+    if (!resumes || resumes.length === 0) {
+      console.log('No resumes found in Supabase')
+      return NextResponse.json({
+        success: true,
+        resumes: []
+      })
+    }
+
+    console.log(`Found ${resumes.length} resumes in Supabase`)
+
     // If we have resumes, fetch their content from MongoDB
-    if (resumes && resumes.length > 0) {
-      try {
-        const client = await clientPromise
-        const db = client.db('grandproject')
-        const collection = db.collection('resumes')
+    try {
+      const client = await clientPromise
+      const db = client.db('grandproject')
+      const collection = db.collection('resumes')
 
-        const resumesWithContent = await Promise.all(
-          resumes.map(async (resume) => {
-            try {
-              const mongoDoc = await collection.findOne({ resumeId: resume.id })
-              return {
-                ...resume,
-                content: mongoDoc?.content || null,
-                analysis: mongoDoc?.analysis || null,
-              }
-            } catch (error) {
-              console.error(`Error fetching content for resume ${resume.id}:`, error)
-              return {
-                ...resume,
-                content: null,
-                analysis: null,
-              }
+      console.log('MongoDB connected, fetching content...')
+
+      const resumesWithContent = await Promise.all(
+        resumes.map(async (resume) => {
+          try {
+            console.log(`Fetching content for resume ${resume.id}`)
+            const mongoDoc = await collection.findOne({ resumeId: resume.id })
+            console.log(`MongoDB result for ${resume.id}:`, mongoDoc ? 'Found' : 'Not found')
+            
+            return {
+              ...resume,
+              content: mongoDoc?.content || null,
+              analysis: mongoDoc?.analysis || null,
             }
-          })
-        )
+          } catch (error) {
+            console.error(`Error fetching content for resume ${resume.id}:`, error)
+            return {
+              ...resume,
+              content: null,
+              analysis: null,
+            }
+          }
+        })
+      )
 
-        return NextResponse.json(resumesWithContent)
-      } catch (mongoError) {
-        console.error('MongoDB error:', mongoError)
-        // Return resumes without content if MongoDB fails
-        return NextResponse.json(resumes.map(resume => ({
+      console.log('Returning resumes with content')
+      return NextResponse.json({
+        success: true,
+        resumes: resumesWithContent
+      })
+    } catch (mongoError) {
+      console.error('MongoDB error:', mongoError)
+      // Return resumes without content if MongoDB fails
+      console.log('Returning resumes without content due to MongoDB error')
+      return NextResponse.json({
+        success: true,
+        resumes: resumes.map(resume => ({
           ...resume,
           content: null,
           analysis: null,
-        })))
-      }
+        }))
+      })
     }
-
-    return NextResponse.json(resumes || [])
   } catch (error) {
     console.error('Error in GET /api/resumes:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return NextResponse.json({ 
+      success: false,
+      error: 'Internal server error',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 })
   }
 }
 

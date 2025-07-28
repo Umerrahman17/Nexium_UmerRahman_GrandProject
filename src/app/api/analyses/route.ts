@@ -17,13 +17,22 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error('Error fetching analyses:', error)
-      return NextResponse.json({ error: 'Failed to fetch analyses' }, { status: 500 })
+      return NextResponse.json({ 
+        success: false,
+        error: 'Failed to fetch analyses' 
+      }, { status: 500 })
     }
 
-    return NextResponse.json(analyses || [])
+    return NextResponse.json({
+      success: true,
+      analyses: analyses || []
+    })
   } catch (error) {
     console.error('Error in analyses API:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return NextResponse.json({ 
+      success: false,
+      error: 'Internal server error' 
+    }, { status: 500 })
   }
 }
 
